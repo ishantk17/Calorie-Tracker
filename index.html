@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Calorie Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0f13;
+    --bg2: #16161d;
+    --bg3: #1e1e28;
+    --border: rgba(255,255,255,0.08);
+    --text: #f0f0f5;
+    --muted: #8888a0;
+    --accent: #7c6af7;
+    --accent2: #f7706a;
+    --green: #4ecb8d;
+    --amber: #f7c36a;
+    --blue: #6ab0f7;
+    --pink: #f76aac;
+    --radius: 14px;
+    --font: 'Segoe UI', system-ui, sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    padding-bottom: 80px;
+  }
+
+  /* Header */
+  .header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 16px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header h1 {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: var(--text);
+  }
+  .header p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* Tab bar */
+  .tabs {
+    display: flex;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+    position: sticky;
+    top: 65px;
+    z-index: 99;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex: 1;
+    min-width: 80px;
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* Content */
+  .page { display: none; padding: 16px; }
+  .page.active { display: block; }
+
+  /* Cards */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .card-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  /* Day selector */
+  .day-selector {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+    margin-bottom: 14px;
+  }
+  .day-selector::-webkit-scrollbar { display: none; }
+  .day-btn {
+    flex-shrink: 0;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .day-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+
+  /* Calorie ring */
+  .ring-wrap {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .ring-canvas-wrap {
+    position: relative;
+    width: 110px;
+    height: 110px;
+    flex-shrink: 0;
+  }
+  .ring-canvas-wrap canvas { position: absolute; top: 0; left: 0; }
+  .ring-center {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  .ring-cal { font-size: 22px; font-weight: 700; }
+  .ring-label { font-size: 10px; color: var(--muted); }
+
+  /* Macro pills */
+  .macros {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .macro-pill {
+    background: var(--bg3);
+    border-radius: 10px;
+    padding: 10px 8px;
+    text-align: center;
+  }
+  .macro-pill .val { font-size: 18px; font-weight: 700; }
+  .macro-pill .name { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .macro-pill .bar { height: 3px; border-radius: 2px; margin-top: 6px; background: var(--border); overflow: hidden; }
+  .macro-pill .bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s; }
+
+  /* Food list */
+  .food-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .food-item:last-child { border-bottom: none; }
+  .food-name { font-size: 14px; font-weight: 500; }
+  .food-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .food-cal { font-size: 15px; font-weight: 700; color: var(--accent); }
+
+  /* Meal badge */
+  .meal-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 5px;
+    margin-right: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .meal-B { background: rgba(107,176,247,0.15); color: var(--blue); }
+  .meal-L { background: rgba(78,203,141,0.15); color: var(--green); }
+  .meal-D { background: rgba(247,112,106,0.15); color: var(--accent2); }
+  .meal-S { background: rgba(247,195,106,0.15); color: var(--amber); }
+
+  /* Chart wrapper */
+  .chart-wrap {
+    position: relative;
+    width: 100%;
+  }
+
+  /* Week / Month summary rows */
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-row .day-label { color: var(--text); font-weight: 500; }
+  .summary-row .day-cal { color: var(--accent); font-weight: 700; font-size: 15px; }
+  .summary-row .day-macros { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* Stat strip */
+  .stat-strip {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .stat-box {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+  }
+  .stat-box .s-val { font-size: 22px; font-weight: 700; }
+  .stat-box .s-lbl { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .empty .emoji { font-size: 36px; margin-bottom: 10px; }
+
+  /* Legend */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  /* Pie legend */
+  .pie-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .pie-legend-item { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  .pie-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  /* Daily goal bar */
+  .goal-bar-wrap { margin: 8px 0 0; }
+  .goal-bar-track { background: var(--bg3); border-radius: 4px; height: 6px; overflow: hidden; margin-top: 5px; }
+  .goal-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s; }
+  .goal-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🔥 Calorie Tracker</h1>
+  <p id="today-label">Loading...</p>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showPage('daily')">Daily</div>
+  <div class="tab" onclick="showPage('weekly')">Weekly</div>
+  <div class="tab" onclick="showPage('monthly')">Monthly</div>
+</div>
+
+<!-- DAILY PAGE -->
+<div class="page active" id="page-daily">
+
+  <div class="day-selector" id="day-selector"></div>
+
+  <!-- Calorie summary -->
+  <div class="card">
+    <div class="card-title">Calories</div>
+    <div class="ring-wrap">
+      <div class="ring-canvas-wrap">
+        <canvas id="ring-chart" width="110" height="110"></canvas>
+        <div class="ring-center">
+          <div class="ring-cal" id="ring-cal">0</div>
+          <div class="ring-label">kcal</div>
+        </div>
+      </div>
+      <div style="flex:1">
+        <div class="goal-bar-wrap">
+          <div class="goal-label">
+            <span>Eaten</span>
+            <span id="goal-pct">0% of goal</span>
+          </div>
+          <div class="goal-bar-track">
+            <div class="goal-bar-fill" id="goal-bar" style="width:0%;background:var(--accent)"></div>
+          </div>
+        </div>
+        <div style="margin-top:14px; font-size:13px; color:var(--muted)">
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+            <span>Goal</span><span style="color:var(--text);font-weight:600" id="goal-val">2000 kcal</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span>Remaining</span><span style="font-weight:600" id="rem-val">2000 kcal</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Macros -->
+  <div class="card">
+    <div class="card-title">Macronutrients</div>
+    <div class="macros">
+      <div class="macro-pill">
+        <div class="val" id="d-protein" style="color:var(--blue)">0g</div>
+        <div class="name">Protein</div>
+        <div class="bar"><div class="bar-fill" id="d-protein-bar" style="background:var(--blue);width:0%"></div></div>
+      </div>
+      <div class="macro-pill">
+        <div class="val" id="d-carbs" style="color:var(--amber)">0g</div>
+        <div class="name">Carbs</div>
+        <div class="bar"><div class="bar-fill" id="d-carbs-bar" style="background:var(--amber);width:0%"></div></div>
+      </div>
+      <div class="macro-pill">
+        <div class="val" id="d-fat" style="color:var(--pink)">0g</div>
+        <div class="name">Fat</div>
+        <div class="bar"><div class="bar-fill" id="d-fat-bar" style="background:var(--pink);width:0%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Macro Pie -->
+  <div class="card">
+    <div class="card-title">Macro Split</div>
+    <div class="chart-wrap" style="height:180px">
+      <canvas id="pie-chart" role="img" aria-label="Macro split pie chart">Macronutrient breakdown pie chart.</canvas>
+    </div>
+    <div class="pie-legend">
+      <div class="pie-legend-item"><div class="pie-dot" style="background:#6ab0f7"></div><span id="pie-protein-lbl">Protein 0g</span></div>
+      <div class="pie-legend-item"><div class="pie-dot" style="background:#f7c36a"></div><span id="pie-carbs-lbl">Carbs 0g</span></div>
+      <div class="pie-legend-item"><div class="pie-dot" style="background:#f76aac"></div><span id="pie-fat-lbl">Fat 0g</span></div>
+      <div class="pie-legend-item"><div class="pie-dot" style="background:#4ecb8d"></div><span id="pie-fiber-lbl">Fiber 0g</span></div>
+    </div>
+  </div>
+
+  <!-- Food Log -->
+  <div class="card">
+    <div class="card-title">Food Log</div>
+    <div id="food-list"><div class="empty"><div class="emoji">🍽️</div>No food logged yet</div></div>
+  </div>
+
+</div>
+
+<!-- WEEKLY PAGE -->
+<div class="page" id="page-weekly">
+  <div class="stat-strip" id="week-stats"></div>
+
+  <div class="card">
+    <div class="card-title">Calories This Week</div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Calories</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(255,255,255,0.15);border:1px dashed rgba(255,255,255,0.3)"></div>Goal (2000)</div>
+    </div>
+    <div class="chart-wrap" style="height:220px">
+      <canvas id="week-bar-chart" role="img" aria-label="Weekly calorie bar chart">Weekly calorie data.</canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Avg Macros This Week</div>
+    <div class="chart-wrap" style="height:200px">
+      <canvas id="week-macro-chart" role="img" aria-label="Weekly average macros">Weekly macro averages.</canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Daily Breakdown</div>
+    <div id="week-list"></div>
+  </div>
+</div>
+
+<!-- MONTHLY PAGE -->
+<div class="page" id="page-monthly">
+  <div class="stat-strip" id="month-stats"></div>
+
+  <div class="card">
+    <div class="card-title">Calorie Trend (Monthly)</div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Daily Calories</div>
+    </div>
+    <div class="chart-wrap" style="height:220px">
+      <canvas id="month-line-chart" role="img" aria-label="Monthly calorie line chart">Monthly calorie trend.</canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Macro Distribution (Month)</div>
+    <div class="chart-wrap" style="height:200px">
+      <canvas id="month-macro-pie" role="img" aria-label="Monthly macro pie chart">Monthly macro distribution.</canvas>
+    </div>
+    <div class="pie-legend">
+      <div class="pie-legend-item"><div class="pie-dot" style="background:#6ab0f7"></div><span id="m-pie-protein-lbl">Protein</span></div>
+      <div class="pie-legend-item"><div class="pie-dot" style="background:#f7c36a"></div><span id="m-pie-carbs-lbl">Carbs</span></div>
+      <div class="pie-legend-item"><div class="pie-dot" style="background:#f76aac"></div><span id="m-pie-fat-lbl">Fat</span></div>
+      <div class="pie-legend-item"><div class="pie-dot" style="background:#4ecb8d"></div><span id="m-pie-fiber-lbl">Fiber</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">All Days Logged</div>
+    <div id="month-list"></div>
+  </div>
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────
+const GOAL_CAL = 2000;
+
+const ALL_DATA = [
+  {
+    date: "2025-06-09",
+    meals: [
+      { meal: "B", name: "Moong Dal Chila with HP Paneer + Boondi Raita (1/4 bowl)", cal: 453, protein: 39, carbs: 52, fat: 12, fiber: 4 },
+      { meal: "L", name: "Soya Fried Rice + Boondi Raita", cal: 400, protein: 15, carbs: 48, fat: 15, fiber: 3 },
+      { meal: "S", name: "Black Chana Boiled (60g raw)", cal: 218, protein: 11, carbs: 36, fat: 3, fiber: 7 },
+      { meal: "D", name: "Matar Paneer + 2 Chapati + Salad", cal: 619, protein: 25, carbs: 66, fat: 29, fiber: 8 },
+      { meal: "S", name: "ON Whey (1 scoop) + 200ml Milk", cal: 244, protein: 30, carbs: 13, fat: 8, fiber: 0 },
+    ]
+  },
+  {
+    date: "2025-06-10",
+    meals: [
+      { meal: "B", name: "3 Eggless Protein Pancakes (Whey + Honey)", cal: 481, protein: 34, carbs: 67, fat: 9, fiber: 2 },
+      { meal: "L", name: "Bhindi + Mix Dal + 3 Chapati", cal: 593, protein: 25, carbs: 92, fat: 15, fiber: 12 },
+      { meal: "S", name: "Walnuts + Almonds + Pumpkin Seeds", cal: 128, protein: 5, carbs: 3, fat: 12, fiber: 2 },
+      { meal: "S", name: "2 Multigrain Bread + Peanut Butter", cal: 178, protein: 7, carbs: 24, fat: 6, fiber: 2 },
+      { meal: "D", name: "2 Chapati + Chole Sabzi + Salad", cal: 557, protein: 23, carbs: 89, fat: 13, fiber: 10 },
+    ]
+  },
+];
+
+// ─── CHARTS STATE ─────────────────────────────────────────
+let ringChart, pieChart, weekBarChart, weekMacroChart, monthLineChart, monthPieChart;
+let selectedDate = null;
+
+// ─── INIT ──────────────────────────────────────────────────
+function init() {
+  document.getElementById('today-label').textContent = new Date().toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+  buildDaySelector();
+  renderDaily();
+  renderWeekly();
+  renderMonthly();
+}
+
+// ─── HELPERS ─────────────────────────────────────────────
+function dayLabel(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.round((today - d) / 86400000);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Yesterday';
+  return d.toLocaleDateString('en-IN', { weekday:'short', day:'numeric', month:'short' });
+}
+
+function shortDay(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-IN', { weekday:'short' });
+}
+
+function totals(meals) {
+  return meals.reduce((a, m) => ({
+    cal: a.cal + m.cal,
+    protein: a.protein + m.protein,
+    carbs: a.carbs + m.carbs,
+    fat: a.fat + m.fat,
+    fiber: a.fiber + (m.fiber || 0)
+  }), { cal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
+}
+
+function mealName(code) {
+  return { B: 'Breakfast', L: 'Lunch', D: 'Dinner', S: 'Snack' }[code] || code;
+}
+
+// ─── DAY SELECTOR ─────────────────────────────────────────
+function buildDaySelector() {
+  const el = document.getElementById('day-selector');
+  if (!ALL_DATA.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">No days logged yet</div>';
+    return;
+  }
+  const sorted = [...ALL_DATA].sort((a,b) => b.date.localeCompare(a.date));
+  if (!selectedDate) selectedDate = sorted[0].date;
+
+  el.innerHTML = sorted.map(d =>
+    `<button class="day-btn ${d.date === selectedDate ? 'active' : ''}" onclick="selectDay('${d.date}')">${dayLabel(d.date)}</button>`
+  ).join('');
+}
+
+function selectDay(date) {
+  selectedDate = date;
+  buildDaySelector();
+  renderDaily();
+}
+
+// ─── DAILY ────────────────────────────────────────────────
+function renderDaily() {
+  const dayData = ALL_DATA.find(d => d.date === selectedDate);
+
+  if (!dayData) {
+    document.getElementById('ring-cal').textContent = '0';
+    document.getElementById('goal-pct').textContent = '0% of goal';
+    document.getElementById('goal-bar').style.width = '0%';
+    document.getElementById('rem-val').textContent = GOAL_CAL + ' kcal';
+    document.getElementById('rem-val').style.color = 'var(--green)';
+    document.getElementById('d-protein').textContent = '0g';
+    document.getElementById('d-carbs').textContent = '0g';
+    document.getElementById('d-fat').textContent = '0g';
+    ['protein','carbs','fat'].forEach(m => document.getElementById('d-'+m+'-bar').style.width = '0%');
+    document.getElementById('food-list').innerHTML = '<div class="empty"><div class="emoji">🍽️</div>No food logged yet</div>';
+    drawPie(0,0,0,0);
+    return;
+  }
+
+  const t = totals(dayData.meals);
+  const pct = Math.min(Math.round(t.cal / GOAL_CAL * 100), 100);
+  const rem = GOAL_CAL - t.cal;
+
+  document.getElementById('ring-cal').textContent = t.cal;
+  document.getElementById('goal-pct').textContent = pct + '% of goal';
+  document.getElementById('goal-bar').style.width = pct + '%';
+  document.getElementById('goal-bar').style.background = t.cal > GOAL_CAL ? 'var(--accent2)' : 'var(--accent)';
+  document.getElementById('goal-val').textContent = GOAL_CAL + ' kcal';
+  document.getElementById('rem-val').textContent = Math.abs(rem) + (rem < 0 ? ' over' : '') + ' kcal';
+  document.getElementById('rem-val').style.color = rem < 0 ? 'var(--accent2)' : 'var(--green)';
+
+  document.getElementById('d-protein').textContent = t.protein + 'g';
+  document.getElementById('d-carbs').textContent = t.carbs + 'g';
+  document.getElementById('d-fat').textContent = t.fat + 'g';
+
+  const maxP = 150, maxC = 300, maxF = 65;
+  document.getElementById('d-protein-bar').style.width = Math.min(t.protein/maxP*100,100)+'%';
+  document.getElementById('d-carbs-bar').style.width = Math.min(t.carbs/maxC*100,100)+'%';
+  document.getElementById('d-fat-bar').style.width = Math.min(t.fat/maxF*100,100)+'%';
+
+  drawRing(t.cal);
+  drawPie(t.protein, t.carbs, t.fat, t.fiber);
+  drawFoodList(dayData.meals);
+}
+
+function drawRing(cal) {
+  const ctx = document.getElementById('ring-chart').getContext('2d');
+  if (ringChart) ringChart.destroy();
+  const pct = Math.min(cal / GOAL_CAL, 1);
+  const over = cal > GOAL_CAL;
+  ringChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      datasets: [{
+        data: [pct, 1 - pct],
+        backgroundColor: [over ? '#f7706a' : '#7c6af7', 'rgba(255,255,255,0.06)'],
+        borderWidth: 0,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      cutout: '72%',
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      animation: { duration: 800 }
+    }
+  });
+}
+
+function drawPie(protein, carbs, fat, fiber) {
+  const ctx = document.getElementById('pie-chart').getContext('2d');
+  if (pieChart) pieChart.destroy();
+  const total = protein + carbs + fat + fiber || 1;
+  const pPct = Math.round(protein/total*100);
+  const cPct = Math.round(carbs/total*100);
+  const fPct = Math.round(fat/total*100);
+  const fiPct = Math.round(fiber/total*100);
+  document.getElementById('pie-protein-lbl').textContent = `Protein ${protein}g (${pPct}%)`;
+  document.getElementById('pie-carbs-lbl').textContent = `Carbs ${carbs}g (${cPct}%)`;
+  document.getElementById('pie-fat-lbl').textContent = `Fat ${fat}g (${fPct}%)`;
+  document.getElementById('pie-fiber-lbl').textContent = `Fiber ${fiber}g (${fiPct}%)`;
+
+  pieChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Protein','Carbs','Fat','Fiber'],
+      datasets: [{
+        data: [protein, carbs, fat, fiber || 1],
+        backgroundColor: ['#6ab0f7','#f7c36a','#f76aac','#4ecb8d'],
+        borderWidth: 0,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw}g` }
+      }},
+      animation: { duration: 600 }
+    }
+  });
+}
+
+function drawFoodList(meals) {
+  if (!meals.length) {
+    document.getElementById('food-list').innerHTML = '<div class="empty"><div class="emoji">🍽️</div>No food logged</div>';
+    return;
+  }
+  document.getElementById('food-list').innerHTML = meals.map(m => `
+    <div class="food-item">
+      <div>
+        <div class="food-name"><span class="meal-badge meal-${m.meal}">${mealName(m.meal)}</span>${m.name}</div>
+        <div class="food-meta">P: ${m.protein}g &nbsp;C: ${m.carbs}g &nbsp;F: ${m.fat}g${m.fiber ? ' &nbsp;Fiber: '+m.fiber+'g' : ''}</div>
+      </div>
+      <div class="food-cal">${m.cal}</div>
+    </div>
+  `).join('');
+}
+
+// ─── WEEKLY ───────────────────────────────────────────────
+function renderWeekly() {
+  const sorted = [...ALL_DATA].sort((a,b) => b.date.localeCompare(a.date));
+  const week = sorted.slice(0,7).reverse();
+
+  if (!week.length) {
+    document.getElementById('week-stats').innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="emoji">📊</div>No data yet</div>';
+    document.getElementById('week-list').innerHTML = '';
+    return;
+  }
+
+  const allTotals = week.map(d => totals(d.meals));
+  const avgCal = Math.round(allTotals.reduce((s,t) => s+t.cal,0) / week.length);
+  const totalCal = allTotals.reduce((s,t) => s+t.cal,0);
+
+  document.getElementById('week-stats').innerHTML = `
+    <div class="stat-box"><div class="s-val" style="color:var(--accent)">${avgCal}</div><div class="s-lbl">Avg kcal/day</div></div>
+    <div class="stat-box"><div class="s-val" style="color:var(--green)">${week.length}</div><div class="s-lbl">Days tracked</div></div>
+    <div class="stat-box"><div class="s-val" style="color:var(--amber)">${Math.round(allTotals.reduce((s,t)=>s+t.protein,0)/week.length)}g</div><div class="s-lbl">Avg Protein</div></div>
+    <div class="stat-box"><div class="s-val" style="color:var(--blue)">${totalCal}</div><div class="s-lbl">Total kcal</div></div>
+  `;
+
+  // Bar chart
+  const labels = week.map(d => shortDay(d.date));
+  const cals = allTotals.map(t => t.cal);
+  const ctxB = document.getElementById('week-bar-chart').getContext('2d');
+  if (weekBarChart) weekBarChart.destroy();
+  weekBarChart = new Chart(ctxB, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Calories',
+          data: cals,
+          backgroundColor: cals.map(c => c > GOAL_CAL ? '#f7706a' : '#7c6af7'),
+          borderRadius: 6,
+          borderWidth: 0,
+        },
+        {
+          label: 'Goal',
+          data: week.map(() => GOAL_CAL),
+          type: 'line',
+          borderColor: 'rgba(255,255,255,0.2)',
+          borderDash: [5,4],
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: false,
+          tension: 0,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.raw} kcal` } } },
+      scales: {
+        x: { ticks: { color: '#8888a0', font: { size: 11 } }, grid: { display: false }, border: { display: false } },
+        y: { ticks: { color: '#8888a0', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' }, border: { display: false } }
+      }
+    }
+  });
+
+  // Macro bar chart
+  const ctxM = document.getElementById('week-macro-chart').getContext('2d');
+  if (weekMacroChart) weekMacroChart.destroy();
+  weekMacroChart = new Chart(ctxM, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Protein', data: allTotals.map(t=>t.protein), backgroundColor: '#6ab0f7', borderRadius: 4, stack: 'macros' },
+        { label: 'Carbs',   data: allTotals.map(t=>t.carbs),   backgroundColor: '#f7c36a', borderRadius: 4, stack: 'macros' },
+        { label: 'Fat',     data: allTotals.map(t=>t.fat),     backgroundColor: '#f76aac', borderRadius: 4, stack: 'macros' },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { stacked: true, ticks: { color: '#8888a0', font:{size:11} }, grid:{display:false}, border:{display:false} },
+        y: { stacked: true, ticks: { color: '#8888a0', font:{size:11} }, grid:{color:'rgba(255,255,255,0.05)'}, border:{display:false} }
+      }
+    }
+  });
+
+  // List
+  document.getElementById('week-list').innerHTML = [...week].reverse().map((d,i) => {
+    const t = allTotals[week.length-1-i];
+    return `<div class="summary-row">
+      <div>
+        <div class="day-label">${dayLabel(d.date)}</div>
+        <div class="day-macros">P: ${t.protein}g · C: ${t.carbs}g · F: ${t.fat}g</div>
+      </div>
+      <div class="day-cal">${t.cal} kcal</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── MONTHLY ──────────────────────────────────────────────
+function renderMonthly() {
+  const sorted = [...ALL_DATA].sort((a,b) => a.date.localeCompare(b.date));
+
+  if (!sorted.length) {
+    document.getElementById('month-stats').innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="emoji">📅</div>No data yet</div>';
+    document.getElementById('month-list').innerHTML = '';
+    return;
+  }
+
+  const allTotals = sorted.map(d => totals(d.meals));
+  const avgCal = Math.round(allTotals.reduce((s,t)=>s+t.cal,0)/sorted.length);
+  const maxDay = sorted[allTotals.indexOf(allTotals.reduce((mx,t) => t.cal > mx.cal ? t : mx, allTotals[0]))];
+  const avgProt = Math.round(allTotals.reduce((s,t)=>s+t.protein,0)/sorted.length);
+
+  document.getElementById('month-stats').innerHTML = `
+    <div class="stat-box"><div class="s-val" style="color:var(--accent)">${avgCal}</div><div class="s-lbl">Avg kcal/day</div></div>
+    <div class="stat-box"><div class="s-val" style="color:var(--green)">${sorted.length}</div><div class="s-lbl">Days tracked</div></div>
+    <div class="stat-box"><div class="s-val" style="color:var(--amber)">${avgProt}g</div><div class="s-lbl">Avg Protein</div></div>
+    <div class="stat-box"><div class="s-val" style="color:var(--accent2)">${allTotals.reduce((mx,t)=>Math.max(mx,t.cal),0)}</div><div class="s-lbl">Max kcal day</div></div>
+  `;
+
+  // Line chart
+  const ctxL = document.getElementById('month-line-chart').getContext('2d');
+  if (monthLineChart) monthLineChart.destroy();
+  monthLineChart = new Chart(ctxL, {
+    type: 'line',
+    data: {
+      labels: sorted.map(d => {
+        const dt = new Date(d.date+'T00:00:00');
+        return dt.toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+      }),
+      datasets: [{
+        label: 'Calories',
+        data: allTotals.map(t=>t.cal),
+        borderColor: '#7c6af7',
+        backgroundColor: 'rgba(124,106,247,0.12)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 5,
+        pointBackgroundColor: allTotals.map(t => t.cal > GOAL_CAL ? '#f7706a' : '#7c6af7'),
+        pointBorderWidth: 0,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend:{display:false}, tooltip:{callbacks:{label:c=>` ${c.raw} kcal`}} },
+      scales: {
+        x: { ticks:{color:'#8888a0',font:{size:10},maxRotation:45}, grid:{display:false}, border:{display:false} },
+        y: { ticks:{color:'#8888a0',font:{size:11}}, grid:{color:'rgba(255,255,255,0.05)'}, border:{display:false} }
+      }
+    }
+  });
+
+  // Month pie
+  const totP = allTotals.reduce((s,t)=>s+t.protein,0);
+  const totC = allTotals.reduce((s,t)=>s+t.carbs,0);
+  const totF = allTotals.reduce((s,t)=>s+t.fat,0);
+  const totFi = allTotals.reduce((s,t)=>s+t.fiber,0);
+  const totAll = totP+totC+totF+totFi||1;
+  document.getElementById('m-pie-protein-lbl').textContent = `Protein ${Math.round(totP/sorted.length)}g avg (${Math.round(totP/totAll*100)}%)`;
+  document.getElementById('m-pie-carbs-lbl').textContent = `Carbs ${Math.round(totC/sorted.length)}g avg (${Math.round(totC/totAll*100)}%)`;
+  document.getElementById('m-pie-fat-lbl').textContent = `Fat ${Math.round(totF/sorted.length)}g avg (${Math.round(totF/totAll*100)}%)`;
+  document.getElementById('m-pie-fiber-lbl').textContent = `Fiber ${Math.round(totFi/sorted.length)}g avg (${Math.round(totFi/totAll*100)}%)`;
+
+  const ctxP = document.getElementById('month-macro-pie').getContext('2d');
+  if (monthPieChart) monthPieChart.destroy();
+  monthPieChart = new Chart(ctxP, {
+    type: 'doughnut',
+    data: {
+      datasets:[{
+        data: [totP, totC, totF, totFi||1],
+        backgroundColor: ['#6ab0f7','#f7c36a','#f76aac','#4ecb8d'],
+        borderWidth: 0, borderRadius: 4
+      }]
+    },
+    options: {
+      plugins: { legend:{display:false}, tooltip:{callbacks:{label:c=>` ${c.label}: ${c.raw}g total`}} },
+      animation:{duration:600}
+    }
+  });
+
+  // Month list
+  document.getElementById('month-list').innerHTML = [...sorted].reverse().map((d,i) => {
+    const t = allTotals[sorted.length-1-i];
+    const dt = new Date(d.date+'T00:00:00');
+    const lbl = dt.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
+    return `<div class="summary-row">
+      <div>
+        <div class="day-label">${lbl}</div>
+        <div class="day-macros">P: ${t.protein}g · C: ${t.carbs}g · F: ${t.fat}g</div>
+      </div>
+      <div class="day-cal">${t.cal} kcal</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── TAB SWITCHING ────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  event.target.classList.add('active');
+
+  if (name === 'weekly') renderWeekly();
+  if (name === 'monthly') renderMonthly();
+}
+
+init();
+</script>
+</body>
+</html>
