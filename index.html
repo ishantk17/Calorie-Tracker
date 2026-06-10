@@ -425,7 +425,7 @@ const GOAL_CAL = 2000;
 
 const ALL_DATA = [
   {
-    date: "2026-06-09",
+    date: "2026-06-08",
     meals: [
       { meal: "B", name: "Moong Dal Chila with HP Paneer + Boondi Raita (1/4 bowl)", cal: 453, protein: 39, carbs: 52, fat: 12, fiber: 4 },
       { meal: "L", name: "Soya Fried Rice + Boondi Raita", cal: 400, protein: 15, carbs: 48, fat: 15, fiber: 3 },
@@ -435,7 +435,7 @@ const ALL_DATA = [
     ]
   },
   {
-    date: "2026-06-10",
+    date: "2026-06-09",
     meals: [
       { meal: "B", name: "3 Eggless Protein Pancakes (Whey + Honey)", cal: 481, protein: 34, carbs: 67, fat: 9, fiber: 2 },
       { meal: "L", name: "Bhindi + Mix Dal + 3 Chapati", cal: 593, protein: 25, carbs: 92, fat: 15, fiber: 12 },
@@ -463,10 +463,6 @@ function init() {
 // ─── HELPERS ─────────────────────────────────────────────
 function dayLabel(dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
-  const today = new Date(); today.setHours(0,0,0,0);
-  const diff = Math.round((today - d) / 86400000);
-  if (diff === 0) return 'Today';
-  if (diff === 1) return 'Yesterday';
   return d.toLocaleDateString('en-IN', { weekday:'short', day:'numeric', month:'short' });
 }
 
