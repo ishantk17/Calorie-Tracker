@@ -25,6 +25,25 @@
     --font: 'Segoe UI', system-ui, sans-serif;
   }
 
+  /* Alert badges */
+  .alert-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 5px;
+    margin-left: 6px;
+    letter-spacing: 0.3px;
+    vertical-align: middle;
+  }
+  .alert-red { background: rgba(247,112,106,0.2); color: #f7706a; border: 1px solid rgba(247,112,106,0.4); }
+  .alert-amber { background: rgba(247,195,106,0.2); color: #f7c36a; border: 1px solid rgba(247,195,106,0.4); }
+  .alert-green { background: rgba(78,203,141,0.2); color: #4ecb8d; border: 1px solid rgba(78,203,141,0.4); }
+
+  .macro-pill.danger { background: rgba(247,112,106,0.12); border: 1px solid rgba(247,112,106,0.3); }
+  .macro-pill.warning { background: rgba(247,195,106,0.1); border: 1px solid rgba(247,195,106,0.3); }
+  .macro-pill.good { background: rgba(78,203,141,0.1); border: 1px solid rgba(78,203,141,0.3); }
+
   body {
     background: var(--bg);
     color: var(--text);
@@ -445,6 +464,23 @@ const ALL_DATA = [
     ]
   },
   {
+    date: "2026-06-11",
+    meals: [
+      { meal: "B", name: "Poha with Peanuts & Peas", cal: 366, protein: 9, carbs: 54, fat: 13, fiber: 4 },
+      { meal: "L", name: "Rice + Rajma + Boondi Raita", cal: 741, protein: 24, carbs: 119, fat: 17, fiber: 13 },
+      { meal: "S", name: "ON Whey (1 scoop) + 200ml Milk", cal: 244, protein: 30, carbs: 13, fat: 8, fiber: 0 },
+      { meal: "D", name: "Homemade Malai Kofta + 3 Triangle Paratha", cal: 830, protein: 24, carbs: 87, fat: 39, fiber: 7 },
+    ]
+  },
+  {
+    date: "2026-06-12",
+    meals: [
+      { meal: "B", name: "3 Egg Cheese Omelette + Masala Macaroni", cal: 581, protein: 29, carbs: 50, fat: 31, fiber: 3 },
+      { meal: "L", name: "Chicken Schezwan Fried Rice", cal: 582, protein: 34, carbs: 70, fat: 15, fiber: 2 },
+      { meal: "D", name: "Butter Chicken + 3 Triangle Paratha + Chocolate Pastry + Caramel Cupcake", cal: 1517, protein: 63, carbs: 158, fat: 65, fiber: 8 },
+    ]
+  },
+  {
     date: "2026-06-10",
     meals: [
       { meal: "B", name: "Tofu Sandwich x2 (4 Multigrain Bread + Tofu + Cheese)", cal: 382, protein: 27, carbs: 53, fat: 10, fiber: 9 },
@@ -546,14 +582,32 @@ function renderDaily() {
   document.getElementById('rem-val').textContent = Math.abs(rem) + (rem < 0 ? ' over' : '') + ' kcal';
   document.getElementById('rem-val').style.color = rem < 0 ? 'var(--accent2)' : 'var(--green)';
 
-  document.getElementById('d-protein').textContent = t.protein + 'g';
-  document.getElementById('d-carbs').textContent = t.carbs + 'g';
-  document.getElementById('d-fat').textContent = t.fat + 'g';
+  // Alert helpers
+  function macroAlert(val, type) {
+    if (type === 'fat')     return val >= 80 ? '<span class="alert-badge alert-red">🔴 HIGH</span>' : val >= 60 ? '<span class="alert-badge alert-amber">🟡 ELEVATED</span>' : '<span class="alert-badge alert-green">✓ OK</span>';
+    if (type === 'protein') return val < 80  ? '<span class="alert-badge alert-red">🔴 LOW</span>'  : val < 100 ? '<span class="alert-badge alert-amber">🟡 LOW</span>'      : '<span class="alert-badge alert-green">✓ GOOD</span>';
+    if (type === 'carbs')   return val >= 300 ? '<span class="alert-badge alert-red">🔴 HIGH</span>' : val >= 250 ? '<span class="alert-badge alert-amber">🟡 ELEVATED</span>' : '<span class="alert-badge alert-green">✓ OK</span>';
+    return '';
+  }
+  function macroClass(val, type) {
+    if (type === 'fat')     return val >= 80 ? 'danger' : val >= 60 ? 'warning' : 'good';
+    if (type === 'protein') return val < 80  ? 'danger' : val < 100 ? 'warning' : 'good';
+    if (type === 'carbs')   return val >= 300 ? 'danger' : val >= 250 ? 'warning' : 'good';
+    return '';
+  }
+
+  document.getElementById('d-protein').innerHTML = t.protein + 'g' + macroAlert(t.protein, 'protein');
+  document.getElementById('d-carbs').innerHTML   = t.carbs   + 'g' + macroAlert(t.carbs,   'carbs');
+  document.getElementById('d-fat').innerHTML     = t.fat     + 'g' + macroAlert(t.fat,     'fat');
+
+  document.querySelectorAll('.macro-pill')[0].className = 'macro-pill ' + macroClass(t.protein, 'protein');
+  document.querySelectorAll('.macro-pill')[1].className = 'macro-pill ' + macroClass(t.carbs,   'carbs');
+  document.querySelectorAll('.macro-pill')[2].className = 'macro-pill ' + macroClass(t.fat,     'fat');
 
   const maxP = 150, maxC = 300, maxF = 65;
   document.getElementById('d-protein-bar').style.width = Math.min(t.protein/maxP*100,100)+'%';
-  document.getElementById('d-carbs-bar').style.width = Math.min(t.carbs/maxC*100,100)+'%';
-  document.getElementById('d-fat-bar').style.width = Math.min(t.fat/maxF*100,100)+'%';
+  document.getElementById('d-carbs-bar').style.width   = Math.min(t.carbs/maxC*100,100)+'%';
+  document.getElementById('d-fat-bar').style.width     = Math.min(t.fat/maxF*100,100)+'%';
 
   drawRing(t.cal);
   drawPie(t.protein, t.carbs, t.fat, t.fiber);
