@@ -160,6 +160,26 @@
     justify-content: center;
   }
   .date-picker-btn:active { background: var(--accent); }
+
+  .week-select-row { margin-bottom: 14px; }
+  .week-select {
+    width: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--font);
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238888a0' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 16px;
+  }
+  .week-select:focus { outline: none; border-color: var(--accent); }
   .day-btn {
     flex-shrink: 0;
     background: var(--bg2);
@@ -409,6 +429,10 @@
 
 <!-- WEEKLY PAGE -->
 <div class="page" id="page-weekly">
+  <div class="week-select-row">
+    <select id="week-select" class="week-select" onchange="onWeekSelected(this.value)"></select>
+  </div>
+
   <div class="stat-strip" id="week-stats"></div>
 
   <div class="card">
@@ -818,14 +842,83 @@ function drawFoodList(meals) {
   `).join('');
 }
 
-// ─── WEEKLY ───────────────────────────────────────────────
-function renderWeekly() {
-  const sorted = [...ALL_DATA].sort((a,b) => b.date.localeCompare(a.date));
-  const week = sorted.slice(0,7).reverse();
+// ─── WEEKLY (Mon-Sun calendar weeks) ────────────────────────
+let selectedWeekStart = null; // 'YYYY-MM-DD' of the Monday for the selected week
 
-  if (!week.length) {
+function getMonday(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay(); // 0=Sun,1=Mon,...6=Sat
+  const diff = day === 0 ? -6 : 1 - day; // shift back to Monday
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0,10);
+}
+
+function addDays(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0,10);
+}
+
+function fmtShort(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-IN', { day:'numeric', month:'short' });
+}
+
+function getAllWeekStarts() {
+  // returns sorted (desc) list of unique Monday-start weeks that have at least one logged day
+  const mondays = new Set();
+  ALL_DATA.forEach(d => mondays.add(getMonday(d.date)));
+  return [...mondays].sort((a,b) => b.localeCompare(a));
+}
+
+function populateWeekSelect() {
+  const sel = document.getElementById('week-select');
+  const weekStarts = getAllWeekStarts();
+
+  if (!weekStarts.length) {
+    sel.innerHTML = '<option>No data yet</option>';
+    return;
+  }
+
+  if (!selectedWeekStart || !weekStarts.includes(selectedWeekStart)) {
+    selectedWeekStart = weekStarts[0];
+  }
+
+  sel.innerHTML = weekStarts.map(ws => {
+    const we = addDays(ws, 6);
+    const label = `${fmtShort(ws)} – ${fmtShort(we)}`;
+    return `<option value="${ws}" ${ws === selectedWeekStart ? 'selected' : ''}>${label}</option>`;
+  }).join('');
+}
+
+function onWeekSelected(weekStart) {
+  selectedWeekStart = weekStart;
+  renderWeekly();
+}
+
+function renderWeekly() {
+  populateWeekSelect();
+
+  if (!ALL_DATA.length || !selectedWeekStart) {
     document.getElementById('week-stats').innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="emoji">📊</div>No data yet</div>';
     document.getElementById('week-list').innerHTML = '';
+    return;
+  }
+
+  // Build the 7 calendar days (Mon-Sun) for the selected week
+  const weekDates = Array.from({length:7}, (_, i) => addDays(selectedWeekStart, i));
+  const byDate = {};
+  ALL_DATA.forEach(d => byDate[d.date] = d);
+
+  const week = weekDates
+    .filter(dt => byDate[dt]) // only days that actually have logs
+    .map(dt => byDate[dt]);
+
+  if (!week.length) {
+    document.getElementById('week-stats').innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="emoji">📊</div>No logs this week</div>';
+    document.getElementById('week-list').innerHTML = '';
+    if (weekBarChart) { weekBarChart.destroy(); weekBarChart = null; }
+    if (weekMacroChart) { weekMacroChart.destroy(); weekMacroChart = null; }
     return;
   }
 
@@ -835,7 +928,7 @@ function renderWeekly() {
 
   document.getElementById('week-stats').innerHTML = `
     <div class="stat-box"><div class="s-val" style="color:var(--accent)">${avgCal}</div><div class="s-lbl">Avg kcal/day</div></div>
-    <div class="stat-box"><div class="s-val" style="color:var(--green)">${week.length}</div><div class="s-lbl">Days tracked</div></div>
+    <div class="stat-box"><div class="s-val" style="color:var(--green)">${week.length}/7</div><div class="s-lbl">Days tracked</div></div>
     <div class="stat-box"><div class="s-val" style="color:var(--amber)">${Math.round(allTotals.reduce((s,t)=>s+t.protein,0)/week.length)}g</div><div class="s-lbl">Avg Protein</div></div>
     <div class="stat-box"><div class="s-val" style="color:var(--blue)">${totalCal}</div><div class="s-lbl">Total kcal</div></div>
   `;
