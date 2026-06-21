@@ -134,6 +134,32 @@
     margin-bottom: 14px;
   }
   .day-selector::-webkit-scrollbar { display: none; }
+  .day-selector-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    position: relative;
+  }
+  .day-selector-row .day-selector {
+    margin-bottom: 0;
+    flex: 1;
+  }
+  .date-picker-btn {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    font-size: 16px;
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .date-picker-btn:active { background: var(--accent); }
   .day-btn {
     flex-shrink: 0;
     background: var(--bg2);
@@ -298,7 +324,11 @@
 <!-- DAILY PAGE -->
 <div class="page active" id="page-daily">
 
-  <div class="day-selector" id="day-selector"></div>
+  <div class="day-selector-row">
+    <div class="day-selector" id="day-selector"></div>
+    <button class="date-picker-btn" id="date-picker-btn" onclick="document.getElementById('date-picker-input').showPicker ? document.getElementById('date-picker-input').showPicker() : document.getElementById('date-picker-input').click()" title="Pick a date">📅</button>
+    <input type="date" id="date-picker-input" style="position:absolute; opacity:0; width:0; height:0;" onchange="onDatePicked(this.value)">
+  </div>
 
   <!-- Calorie summary -->
   <div class="card">
@@ -600,9 +630,11 @@ function mealName(code) {
   return { B: 'Breakfast', L: 'Lunch', D: 'Dinner', S: 'Snack' }[code] || code;
 }
 
-// ─── DAY SELECTOR ─────────────────────────────────────────
+// ─── DAY SELECTOR (last 7 days only, rest via date picker) ──
 function buildDaySelector() {
   const el = document.getElementById('day-selector');
+  const pickerInput = document.getElementById('date-picker-input');
+
   if (!ALL_DATA.length) {
     el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">No days logged yet</div>';
     return;
@@ -610,7 +642,27 @@ function buildDaySelector() {
   const sorted = [...ALL_DATA].sort((a,b) => b.date.localeCompare(a.date));
   if (!selectedDate) selectedDate = sorted[0].date;
 
-  el.innerHTML = sorted.map(d =>
+  // set picker min/max bounds to available data range
+  const minDate = sorted[sorted.length - 1].date;
+  const maxDate = sorted[0].date;
+  if (pickerInput) {
+    pickerInput.min = minDate;
+    pickerInput.max = maxDate;
+  }
+
+  // last 7 logged days
+  let last7 = sorted.slice(0, 7);
+
+  // if the selected date isn't in the last 7 (picked via calendar), pin it to the front so it's visible
+  const selectedInLast7 = last7.some(d => d.date === selectedDate);
+  if (!selectedInLast7) {
+    const selectedEntry = ALL_DATA.find(d => d.date === selectedDate);
+    if (selectedEntry) {
+      last7 = [selectedEntry, ...last7.slice(0, 6)];
+    }
+  }
+
+  el.innerHTML = last7.map(d =>
     `<button class="day-btn ${d.date === selectedDate ? 'active' : ''}" onclick="selectDay('${d.date}')">${dayLabel(d.date)}</button>`
   ).join('');
 }
@@ -619,6 +671,16 @@ function selectDay(date) {
   selectedDate = date;
   buildDaySelector();
   renderDaily();
+}
+
+function onDatePicked(dateStr) {
+  if (!dateStr) return;
+  const exists = ALL_DATA.some(d => d.date === dateStr);
+  if (!exists) {
+    alert('No data logged for this date.');
+    return;
+  }
+  selectDay(dateStr);
 }
 
 // ─── DAILY ────────────────────────────────────────────────
