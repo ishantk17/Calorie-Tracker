@@ -845,18 +845,25 @@ function drawFoodList(meals) {
 // ─── WEEKLY (Mon-Sun calendar weeks) ────────────────────────
 let selectedWeekStart = null; // 'YYYY-MM-DD' of the Monday for the selected week
 
+function toLocalISO(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function getMonday(dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
   const day = d.getDay(); // 0=Sun,1=Mon,...6=Sat
   const diff = day === 0 ? -6 : 1 - day; // shift back to Monday
   d.setDate(d.getDate() + diff);
-  return d.toISOString().slice(0,10);
+  return toLocalISO(d);
 }
 
 function addDays(dateStr, n) {
   const d = new Date(dateStr + 'T00:00:00');
   d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0,10);
+  return toLocalISO(d);
 }
 
 function fmtShort(dateStr) {
