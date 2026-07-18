@@ -373,10 +373,10 @@
         </div>
         <div style="margin-top:14px; font-size:13px; color:var(--muted)">
           <div style="display:flex;justify-content:space-between;margin-bottom:5px">
-            <span>Goal</span><span style="color:var(--text);font-weight:600" id="goal-val">2000 kcal</span>
+            <span>Goal</span><span style="color:var(--text);font-weight:600" id="goal-val">1800 kcal</span>
           </div>
           <div style="display:flex;justify-content:space-between">
-            <span>Remaining</span><span style="font-weight:600" id="rem-val">2000 kcal</span>
+            <span>Remaining</span><span style="font-weight:600" id="rem-val">1800 kcal</span>
           </div>
         </div>
       </div>
@@ -439,7 +439,7 @@
     <div class="card-title">Calories This Week</div>
     <div class="legend">
       <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Calories</div>
-      <div class="legend-item"><div class="legend-dot" style="background:rgba(255,255,255,0.15);border:1px dashed rgba(255,255,255,0.3)"></div>Goal (2000)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(255,255,255,0.15);border:1px dashed rgba(255,255,255,0.3)"></div>Goal (1800)</div>
     </div>
     <div class="chart-wrap" style="height:220px">
       <canvas id="week-bar-chart" role="img" aria-label="Weekly calorie bar chart">Weekly calorie data.</canvas>
@@ -494,7 +494,7 @@
 
 <script>
 // ─── DATA ───────────────────────────────────────────────────
-const GOAL_CAL = 2000;
+const GOAL_CAL = 1800;
 
 const ALL_DATA = [
   {
